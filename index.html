@@ -1,0 +1,853 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Pilotage Plateau Segments</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: sticky filter bar (segment → période → conseillers), then four tabs: vue d'ensemble, segments, conseillers, évolution. */
+:root{
+  --bg:#f4f6f8; --panel:#ffffff; --panel-2:#eef2f5; --line:#dde3e8; --line-2:#c9d2da;
+  --fg:#101820; --fg-2:#4a5561; --fg-3:#76828e;
+  --accent:#0f5e6b; --accent-soft:#dcecef; --accent-fg:#ffffff;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s7:#4a3aa7;
+  --segC:#2a78d6; --segI:#eb6834; --segL:#1baf7a; --segN:#8a949e;
+  --good:#0a8f0a; --good-bg:#e3f4e3; --bad:#c23434; --bad-bg:#fbe6e6; --neu-bg:#eceff2; --neu:#6b5fc7;
+  --l2:#1d5fb0; --l1:#9cc3ef; --l0:#eceff2; --lm1:#f3b3ae; --lm2:#c73c36;
+  --t2:#ffffff; --t1:#0d2a4d; --t0:#3c4650; --tm1:#5a1512; --tm2:#ffffff;
+  --grid:rgba(16,24,32,.07);
+  --f-display:"Archivo","Segoe UI",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12171c; --panel:#1a2026; --panel-2:#222a31; --line:#2c353e; --line-2:#3a4550;
+  --fg:#eef2f5; --fg-2:#b3bec8; --fg-3:#8793a0;
+  --accent:#5fb7c4; --accent-soft:#1d3a40; --accent-fg:#0b1418;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s7:#9085e9;
+  --segC:#3987e5; --segI:#d95926; --segL:#199e70; --segN:#8793a0;
+  --good:#3cc43c; --good-bg:#18311b; --bad:#f07070; --bad-bg:#3a1d1f; --neu-bg:#262e36; --neu:#9a8ff0;
+  --l2:#3f8ef0; --l1:#244a78; --l0:#2a3139; --lm1:#6b2a2a; --lm2:#e05b55;
+  --t2:#08121f; --t1:#dbe9fb; --t0:#c9d2da; --tm1:#fbdcda; --tm2:#1c0707;
+  --grid:rgba(238,242,245,.08); color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#12171c; --panel:#1a2026; --panel-2:#222a31; --line:#2c353e; --line-2:#3a4550;
+  --fg:#eef2f5; --fg-2:#b3bec8; --fg-3:#8793a0;
+  --accent:#5fb7c4; --accent-soft:#1d3a40; --accent-fg:#0b1418;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s7:#9085e9;
+  --segC:#3987e5; --segI:#d95926; --segL:#199e70; --segN:#8793a0;
+  --good:#3cc43c; --good-bg:#18311b; --bad:#f07070; --bad-bg:#3a1d1f; --neu-bg:#262e36; --neu:#9a8ff0;
+  --l2:#3f8ef0; --l1:#244a78; --l0:#2a3139; --lm1:#6b2a2a; --lm2:#e05b55;
+  --t2:#08121f; --t1:#dbe9fb; --t0:#c9d2da; --tm1:#fbdcda; --tm2:#1c0707;
+  --grid:rgba(238,242,245,.08); color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font:14px/1.45 var(--f-body);margin:0}
+.wrap{max-width:1360px;margin:0 auto;padding-inline:clamp(16px,2.5vw,32px);padding-block:22px 56px;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance}
+h1{font-size:clamp(22px,2.6vw,30px);font-weight:800;letter-spacing:-.01em}
+h2{font-size:17px;font-weight:700}
+h3{font-size:14px;font-weight:700}
+.eyebrow{font:600 11px/1 var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.muted{color:var(--fg-3)}
+header.top{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between}
+header.top .t{display:flex;flex-direction:column;gap:6px;min-width:0}
+.src{font-size:13px;color:var(--fg-2)}
+.btn{font:500 13px var(--f-body);border:1px solid var(--line-2);background:var(--panel);color:var(--fg);border-radius:8px;padding:7px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--accent)}
+button:focus-visible,select:focus-visible,input:focus-visible,label.btn:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+input[type=file]{display:none}
+
+/* filter bar */
+.filters{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(8px);padding-block:10px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.frow{display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center}
+.fgroup{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.flabel{font:600 11px var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--fg-3)}
+.segbar{display:inline-flex;background:var(--panel-2);border-radius:10px;padding:3px;gap:2px;flex-wrap:wrap}
+.segbar button{font:600 13px var(--f-body);border:0;background:transparent;color:var(--fg-2);padding:7px 12px;border-radius:8px;cursor:pointer;display:inline-flex;gap:7px;align-items:center}
+.segbar button i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.segbar button[aria-pressed=true]{background:var(--panel);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.14)}
+.segbar button small{font:500 11px var(--f-mono);color:var(--fg-3)}
+.chip{font:500 13px var(--f-body);border:1px solid var(--line-2);background:var(--panel);color:var(--fg-2);border-radius:999px;padding:5px 11px;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.chip small{opacity:.75;font-size:11px}
+.picker{position:relative}
+.pickbtn{border-color:var(--accent);font-weight:600}
+.pickbtn.on{background:var(--accent);color:var(--accent-fg)}
+.picker-panel{position:absolute;top:calc(100% + 6px);left:0;width:min(360px,calc(100vw - 32px));max-height:min(460px,70vh);display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line-2);border-radius:var(--r);box-shadow:0 12px 32px rgba(0,0,0,.2);z-index:30}
+.picker-panel .ph{padding:10px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--line)}
+.picker-panel input[type=search]{font:14px var(--f-body);padding:7px 9px;border:1px solid var(--line-2);border-radius:8px;background:var(--panel-2);color:var(--fg);width:100%}
+.plist{overflow:auto;padding:6px}
+.plist label{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:13px}
+.plist label:hover{background:var(--panel-2)}
+.plist .dots{margin-left:auto;display:flex;gap:3px}
+.dots i{width:8px;height:8px;border-radius:2px;display:inline-block}
+.context{font-size:13px;color:var(--fg-2);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.context b{color:var(--fg)}
+.selchip{font-size:12px;background:var(--accent-soft);color:var(--fg);border-radius:999px;padding:2px 4px 2px 10px;display:inline-flex;gap:3px;align-items:center}
+.selchip button{border:0;background:transparent;color:var(--fg-2);cursor:pointer;font-size:15px;line-height:1;padding:0 5px}
+
+/* tabs */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs button{font:600 14px var(--f-body);border:0;background:transparent;color:var(--fg-2);padding:10px 14px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tabs button[aria-selected=true]{color:var(--fg);border-bottom-color:var(--accent)}
+.tabpanel{display:flex;flex-direction:column;gap:18px}
+
+/* panels */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.phead{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:flex-end;justify-content:space-between}
+.phead .t{display:flex;flex-direction:column;gap:4px;min-width:0}
+.phead p{margin:0;color:var(--fg-2);font-size:13px;max-width:85ch}
+.ctrls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ctrls label{font-size:12px;color:var(--fg-3);display:flex;gap:6px;align-items:center}
+select{font:500 13px var(--f-body);background:var(--panel);color:var(--fg);border:1px solid var(--line-2);border-radius:8px;padding:6px 8px;max-width:100%}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:18px}
+.chartbox{position:relative;height:320px;min-width:0}
+.chartbox.tall{height:360px}
+.axis-key{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--fg-2)}
+.axis-key i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-2px}
+.axis-key i.line{height:3px;border-radius:2px;vertical-align:3px}
+.trendpill{font:600 12px var(--f-body);border-radius:999px;padding:4px 10px}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+@media (min-width:1100px){.kpis{grid-template-columns:repeat(4,1fr)}}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px 14px 10px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.kpi .kl{font:600 12px var(--f-body);color:var(--fg-2);display:flex;justify-content:space-between;gap:6px}
+.kpi .kl span:last-child{color:var(--fg-3);font-weight:500}
+.kpi .kv{font:700 28px/1.1 var(--f-display);font-variant-numeric:tabular-nums}
+.kpi .kd{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;color:var(--fg-3)}
+.kpi svg{width:100%;height:34px;display:block}
+.delta{font:600 12px var(--f-mono);border-radius:6px;padding:2px 6px;white-space:nowrap}
+.delta.good{background:var(--good-bg);color:var(--good)}
+.delta.bad{background:var(--bad-bg);color:var(--bad)}
+.delta.neu{background:var(--neu-bg);color:var(--fg-2)}
+
+/* tables */
+.tscroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+.tscroll.tallt{max-height:620px;overflow:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+th{font:600 12px var(--f-body);color:var(--fg-2);background:var(--panel-2);position:sticky;top:0;z-index:1}
+th.sortable{cursor:pointer;user-select:none}
+th:first-child,td:first-child{text-align:left}
+td.name{text-align:left;font-weight:500}
+tr.sel td{background:var(--accent-soft)}
+tbody tr:hover td{background:var(--panel-2)}
+tr.sel:hover td{background:var(--accent-soft)}
+td svg{width:90px;height:22px;vertical-align:middle}
+td.c,th.c{text-align:center}
+.pill{display:inline-flex;flex-direction:column;align-items:center;min-width:70px;padding:4px 8px;border-radius:7px;font:500 13px var(--f-mono);line-height:1.2}
+.pill small{font:11px var(--f-body);opacity:.8}
+.legend{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12px;color:var(--fg-2);align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:20px;height:12px;border-radius:3px;display:inline-block}
+details summary{cursor:pointer;color:var(--accent);font-weight:500;font-size:13px}
+details[open] summary{margin-bottom:10px}
+
+/* segments */
+.segs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px}
+.segc{border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:8px;background:var(--panel);min-width:0;cursor:pointer;text-align:left;font:inherit;color:inherit}
+.segc[aria-pressed=true]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.segc.off{opacity:.5}
+.segc .sh{display:flex;align-items:center;gap:8px;font:700 14px var(--f-display)}
+.segc .sh i{width:12px;height:12px;border-radius:3px}
+.segc .share{height:6px;border-radius:3px;background:var(--panel-2);overflow:hidden}
+.segc .share b{display:block;height:100%;border-radius:3px}
+.segc dl{display:grid;grid-template-columns:1fr auto;gap:3px 10px;margin:0;font-size:13px}
+.segc dt{color:var(--fg-2)} .segc dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+
+/* movers */
+.movers{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr));gap:14px}
+.mv{border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.mvrow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:5px 0;border-top:1px solid var(--line);font-size:13px;font-variant-numeric:tabular-nums}
+.mvrow .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mvrow .ft{color:var(--fg-3);font:12px var(--f-mono)}
+
+/* evolution: dumbbell */
+.evo-layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:1000px){.evo-layout{grid-template-columns:1fr}}
+.seg3{display:inline-flex;background:var(--panel-2);border-radius:10px;padding:3px;gap:2px;flex-wrap:wrap}
+.seg3 button{font:600 13px var(--f-body);border:0;background:transparent;color:var(--fg-2);padding:7px 12px;border-radius:8px;cursor:pointer}
+.seg3 button[aria-pressed=true]{background:var(--panel);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.14)}
+.db{display:flex;flex-direction:column}
+.dbrow{display:grid;grid-template-columns:minmax(120px,210px) minmax(0,1fr) 178px;gap:12px;align-items:center;padding:6px 8px;border-radius:8px;cursor:pointer;border:0;background:transparent;color:inherit;font:inherit;text-align:left;width:100%}
+.dbrow:hover{background:var(--panel-2)}
+.dbrow.on{background:var(--accent-soft)}
+.dbrow .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:500}
+.track{position:relative;height:22px}
+.track .base{position:absolute;left:0;right:0;top:50%;height:1px;background:var(--line)}
+.track .plat{position:absolute;top:2px;bottom:2px;width:0;border-left:2px dashed var(--fg-3);opacity:.6}
+.track .bar{position:absolute;top:calc(50% - 2px);height:4px;border-radius:2px}
+.track .d0{position:absolute;top:50%;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;border-radius:50%;background:var(--panel);border:2px solid var(--fg-3)}
+.track .d1{position:absolute;top:50%;width:13px;height:13px;margin:-6.5px 0 0 -6.5px;border-radius:50%;border:2px solid var(--panel)}
+.dbrow .v{font:12px var(--f-mono);color:var(--fg-2);display:flex;gap:6px;justify-content:flex-end;align-items:center}
+.dbhead{display:grid;grid-template-columns:minmax(120px,210px) minmax(0,1fr) 178px;gap:12px;padding:0 8px 6px;font-size:11px;color:var(--fg-3);border-bottom:1px solid var(--line);margin-bottom:4px}
+.dbhead .ax{display:flex;justify-content:space-between;font-family:var(--f-mono)}
+.dbgroup{font:600 11px var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--fg-3);padding:10px 8px 4px}
+.fiche{position:sticky;top:130px}
+.fiche .who{display:flex;flex-direction:column;gap:4px}
+.fiche .who .nm{font:700 20px var(--f-display)}
+.verdicts{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none;font-size:13px}
+.verdicts li{display:flex;gap:8px;align-items:baseline}
+.minis{display:flex;flex-direction:column;gap:12px}
+.mini h3{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.mini h3 span{font:500 12px var(--f-body);color:var(--fg-3)}
+.mini .chartbox{height:130px}
+.note{font-size:12px;color:var(--fg-3);max-width:120ch}
+.toast{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:13px;z-index:50}
+.empty{padding:26px;text-align:center;color:var(--fg-3);border:1px dashed var(--line-2);border-radius:8px}
+@media (max-width:640px){.chartbox{height:260px}.kpi .kv{font-size:24px}.dbrow,.dbhead{grid-template-columns:110px minmax(0,1fr) 92px}.dbrow .v .ft{display:none}}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:600}
+.repgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:14px}
+.repcard{border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.repcard p{margin:0;color:var(--fg-2);font-size:13px}
+.lock{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px}
+.lockcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:28px;width:min(400px,100%);display:flex;flex-direction:column;gap:12px;box-shadow:0 16px 40px rgba(0,0,0,.12)}
+.lockcard input[type=password]{font:16px var(--f-body);padding:10px 12px;border:1px solid var(--line-2);border-radius:8px;background:var(--panel-2);color:var(--fg)}
+.lockcard .btn{justify-content:center;padding:10px 12px;font-size:14px}
+.lockerr{margin:0;color:var(--bad);font-size:13px;min-height:1em}
+.logout{font-size:12px;color:var(--fg-3);background:none;border:0;cursor:pointer;text-decoration:underline;padding:0}
+.print-title{display:none}
+@media print{
+  @page{size:A4 landscape;margin:10mm}
+  body{background:#fff}
+  .filters{position:static;backdrop-filter:none;background:none}
+  .tabs,header.top .ctrls,.frow,.ctrls,#lock,.toast,.tabpanel[data-panel=rapport],.logout,details summary{display:none!important}
+  .tabpanel{display:flex!important}
+  .print-title{display:block;font:700 18px var(--f-display);margin:8px 0 0}
+  .tabpanel[data-panel=segments],.tabpanel[data-panel=conseillers],.tabpanel[data-panel=evolution]{break-before:page}
+  .grid2{grid-template-columns:1fr}
+  .chartbox{height:300px}
+  .panel,.kpi,.segc{break-inside:avoid}
+  .tscroll.tallt{max-height:none;overflow:visible}
+  .fiche{position:static}
+  .evo-layout{grid-template-columns:1fr}
+  .wrap{max-width:none;padding:0}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header class="top">
+    <div class="t">
+      <span class="eyebrow">Supervision · production sortante · septembre</span>
+      <h1 id="title">Pilotage plateau par segment</h1>
+      <span class="src" id="src"></span>
+      <button class="logout" type="button" onclick="logout()">Se déconnecter de cet appareil</button>
+    </div>
+    <div class="ctrls">
+      <button class="btn" id="goReport" type="button">⤓ Télécharger le rapport</button>
+      <button class="btn" id="resetBtn" type="button">Réinitialiser les filtres</button>
+    </div>
+  </header>
+
+  <nav class="filters" aria-label="Filtres">
+    <div class="frow">
+      <div class="fgroup"><span class="flabel">Segment</span><div class="segbar" id="segBar" role="group" aria-label="Segment"></div></div>
+      <div class="fgroup"><span class="flabel">Période</span><div class="fgroup" id="weekChips"></div></div>
+      <div class="fgroup picker">
+        <span class="flabel">Conseillers</span>
+        <button class="btn pickbtn" id="pickBtn" type="button" aria-expanded="false">Tous</button>
+        <div class="picker-panel" id="pickPanel" hidden>
+          <div class="ph"><input type="search" id="pickSearch" placeholder="Rechercher un conseiller">
+            <div class="fgroup"><button class="btn" type="button" id="pickAll">Tous les conseillers concernés</button></div>
+            <span class="muted" style="font-size:12px" id="pickNote"></span></div>
+          <div class="plist" id="pickList"></div>
+        </div>
+      </div>
+    </div>
+    <div class="context" id="context"></div>
+  </nav>
+
+  <div class="tabs" role="tablist" id="tabs">
+    <button role="tab" type="button" data-tab="vue" aria-selected="true">Vue d'ensemble</button>
+    <button role="tab" type="button" data-tab="segments" aria-selected="false">Segments</button>
+    <button role="tab" type="button" data-tab="conseillers" aria-selected="false">Conseillers</button>
+    <button role="tab" type="button" data-tab="evolution" aria-selected="false">Évolution individuelle</button>
+    <button role="tab" type="button" data-tab="rapport" aria-selected="false">Rapport</button>
+  </div>
+
+  <!-- VUE -->
+  <div class="tabpanel" data-panel="vue"><h2 class="print-title">Vue d'ensemble</h2><!--v-->
+    <div class="kpis" id="kpis"></div>
+    <section class="panel">
+      <div class="phead">
+        <div class="t"><h2>Évolution par jour de production</h2><p>Barres sur l'axe gauche, courbe sur l'axe droit ; le pointillé donne la tendance de la courbe.</p></div>
+        <div class="ctrls"><label>Barres <select id="dayBar"></select></label><label>Courbe <select id="dayLine"></select></label><span class="trendpill" id="dayTrend"></span></div>
+      </div>
+      <div class="axis-key" id="dayKey"></div>
+      <div class="chartbox tall"><canvas id="cDay"></canvas></div>
+    </section>
+    <div class="grid2">
+      <section class="panel">
+        <div class="phead"><div class="t"><h2>Semaine contre semaine</h2><p>Volumes ramenés par jour de production ; écart avec la semaine précédente.</p></div></div>
+        <div class="tscroll" id="weekTable"></div>
+      </section>
+      <section class="panel">
+        <div class="phead">
+          <div class="t"><h2>Profil par jour de la semaine</h2><p>Moyenne par jour de production.</p></div>
+          <div class="ctrls"><label>Barres <select id="dowBar"></select></label><label>Courbe <select id="dowLine"></select></label></div>
+        </div>
+        <div class="chartbox"><canvas id="cDow"></canvas></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- SEGMENTS -->
+  <div class="tabpanel" data-panel="segments"><h2 class="print-title">Segments</h2><!--h-->
+    <section class="panel">
+      <div class="phead"><div class="t"><h2>Les segments côte à côte</h2><p id="segSub"></p></div></div>
+      <div class="segs" id="segCards"></div>
+    </section>
+    <section class="panel">
+      <div class="phead">
+        <div class="t"><h2>Évolution hebdomadaire par segment</h2><p>Une courbe par segment ; volumes ramenés par jour.</p></div>
+        <div class="ctrls"><label>Indicateur <select id="segMetric"></select></label></div>
+      </div>
+      <div class="chartbox"><canvas id="cSeg"></canvas></div>
+    </section>
+    <section class="panel">
+      <div class="phead">
+        <div class="t"><h2>Conseiller × segment</h2><p>Seuls les conseillers concernés par les segments choisis ; les autres segments restent affichés en clair pour comparaison. Chaque case est comparée à la moyenne du segment ; petit chiffre = décrochés ; case pâle = moins de 50 décrochés.</p></div>
+        <div class="ctrls"><label>Indicateur <select id="mxMetric"></select></label><label>Trier par <select id="mxSort"></select></label></div>
+      </div>
+      <div class="legend" id="mxLegend"></div>
+      <div class="tscroll tallt" id="mxTable"></div>
+    </section>
+  </div>
+
+  <!-- CONSEILLERS -->
+  <div class="tabpanel" data-panel="conseillers"><h2 class="print-title">Conseillers</h2><!--h-->
+    <section class="panel">
+      <div class="phead">
+        <div class="t"><h2>Qui progresse, qui recule</h2><p id="mvSub"></p></div>
+        <div class="ctrls"><label>Indicateur <select id="mvMetric"></select></label></div>
+      </div>
+      <div class="movers" id="movers"></div>
+    </section>
+    <section class="panel">
+      <div class="phead">
+        <div class="t"><h2>Classement des conseillers</h2><p>Conseillers concernés par le filtre. Cliquez un en-tête pour trier, cochez pour ajouter à la sélection, cliquez un nom pour ouvrir sa fiche.</p></div>
+        <div class="ctrls"><label>Rang sur <select id="advMetric"></select></label></div>
+      </div>
+      <div class="tscroll tallt" id="advTable"></div>
+    </section>
+    <section class="panel">
+      <div class="phead">
+        <div class="t"><h2>Carte semaine par semaine</h2><p>Chaque case est comparée au plateau (périmètre filtré) de la même semaine. Case pâle : moins de 2 jours.</p></div>
+        <div class="ctrls"><label>Indicateur <select id="heatMetric"></select></label></div>
+      </div>
+      <div class="legend" id="heatLegend"></div>
+      <div class="tscroll tallt" id="heatTable"></div>
+    </section>
+  </div>
+
+  <!-- EVOLUTION -->
+  <div class="tabpanel" data-panel="evolution"><h2 class="print-title">Évolution individuelle</h2><!--h-->
+    <div class="evo-layout">
+      <section class="panel">
+        <div class="phead">
+          <div class="t"><h2>Avant → après</h2><p id="evoSub"></p></div>
+          <div class="seg3" id="evoSeg" role="group" aria-label="Indicateur"></div>
+        </div>
+        <div class="legend"><span><i style="border:2px solid var(--fg-3);border-radius:50%;width:11px;height:11px;background:var(--panel)"></i>Première semaine</span><span><i style="border-radius:50%;width:12px;height:12px;background:var(--good)"></i>Dernière semaine (vert = mieux, rouge = moins bien)</span><span><i style="width:0;height:14px;border-left:2px dashed var(--fg-3);border-radius:0"></i>Plateau</span></div>
+        <div id="dumbbell"></div>
+      </section>
+      <section class="panel fiche" id="fiche"></section>
+    </div>
+  </div>
+
+  <!-- RAPPORT -->
+  <div class="tabpanel" data-panel="rapport" hidden>
+    <section class="panel">
+      <div class="phead"><div class="t"><h2>Télécharger le rapport</h2><p>Le rapport reprend exactement les filtres en cours (segment, période, conseillers). Modifiez-les en haut de page avant de télécharger.</p></div></div>
+      <div class="context" id="repScope"></div>
+      <div class="repgrid">
+        <div class="repcard">
+          <h3>Classeur Excel</h3>
+          <p>Sept onglets prêts à retravailler : synthèse, conseillers, semaines, jours, segments, conseiller × segment, conseiller × semaine.</p>
+          <button class="btn primary" type="button" id="dlXlsx">⤓ Télécharger en Excel (.xlsx)</button>
+        </div>
+        <div class="repcard">
+          <h3>Rapport PDF</h3>
+          <p>Toutes les vues (vue d'ensemble, segments, conseillers, évolution) mises en page pour l'impression. Choisissez « Enregistrer au format PDF » dans la fenêtre d'impression.</p>
+          <button class="btn primary" type="button" id="dlPdf">⎙ Imprimer / enregistrer en PDF</button>
+        </div>
+      </div>
+      <p class="muted" style="font-size:12px;margin:0" id="repFresh"></p>
+    </section>
+  </div>
+
+  <p class="note" id="method">Méthode : les taux d'un groupe sont recalculés à partir des volumes (jamais de moyenne de moyennes). CA+/argu = CA+ ÷ argumentés ; Conso fiche = CA+ ÷ décrochés (taux) ; Volume conso = décrochés ÷ CA+ (fiches consommées pour un CA+, plus bas = mieux) ; CA+/heure = CA+ ÷ heures de production (estimées à partir des temps de communication les jours sans CA+) ; DMC Refus = durée moyenne des refus, pondérée par le nombre de refus. <span id="dataNote"></span> Choisir un segment ne garde que les conseillers qui y ont travaillé sur la période ; le « plateau » de référence devient alors celui du segment.</p>
+</div>
+<div class="toast" id="toast" hidden></div>
+<div id="lock" class="lock">
+  <form class="lockcard" id="lockForm" autocomplete="off">
+    <span class="eyebrow">Supervision · accès réservé</span>
+    <h1 style="font-size:24px">Pilotage plateau</h1>
+    <p class="muted" style="margin:0" id="lockMsg">Saisissez le code d'accès communiqué par la supervision.</p>
+    <input type="password" id="lockCode" placeholder="Code d'accès" aria-label="Code d'accès" required>
+    <label style="display:flex;gap:8px;align-items:center;font-size:13px;color:var(--fg-2)"><input type="checkbox" id="lockRemember" checked> Se souvenir de cet appareil</label>
+    <button class="btn primary" type="submit" id="lockBtn">Ouvrir le tableau de bord</button>
+    <p class="lockerr" id="lockErr" role="alert"></p>
+  </form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+let META={};
+
+/* ---------- indicators ---------- */
+const M = [
+  {k:'dec', l:'Décrochés', f:'int', vol:1, dir:1},
+  {k:'ca', l:'CA+', f:'int', vol:1, dir:1},
+  {k:'conv', l:'Conso fiche', f:'pct2', dir:1},
+  {k:'conso', l:'Volume conso', f:'d0', dir:-1},
+  {k:'cm', l:'C-', f:'int', vol:1, dir:0},
+  {k:'hrs', l:'Heures de production', f:'h', vol:1, dir:0},
+  {k:'argu', l:'CA+/argu', f:'pct', dir:1},
+  {k:'cah', l:'CA+/heure', f:'d2', dir:1},
+  {k:'dech', l:'Décrochés/heure', f:'d1', dir:1},
+  {k:'dmcR', l:'DMC Refus', f:'dur', dir:0},
+  {k:'rep', l:'Tx Répondeur', f:'pct', dir:-1},
+  {k:'wait', l:'Tx Waiting', f:'pct', dir:-1},
+  {k:'ind', l:'Tx Indispo', f:'pct2', dir:-1},
+  {k:'hc', l:'Tx HC éligible', f:'pct2', dir:0},
+  {k:'apl', l:'Tx APL', f:'pct2', dir:0},
+  {k:'dmcC', l:'DMC CA+', f:'dur', dir:0},
+  {k:'wrap', l:'DM Wrap-up', f:'dur', dir:-1},
+  {k:'dmcRep', l:'DMC Répondeur', f:'dur', dir:-1},
+];
+const MK = Object.fromEntries(M.map(m=>[m.k,m]));
+const isPct = k => ['pct','pct2'].includes(MK[k].f);
+const nf0=new Intl.NumberFormat('fr-FR',{maximumFractionDigits:0});
+const nf1=new Intl.NumberFormat('fr-FR',{minimumFractionDigits:1,maximumFractionDigits:1});
+const nf2=new Intl.NumberFormat('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2});
+function fmt(k,v){ if(v==null||!isFinite(v)) return '–'; const f=MK[k].f;
+  if(f==='int'||f==='d0') return nf0.format(v); if(f==='h') return nf1.format(v)+' h'; if(f==='d1') return nf1.format(v); if(f==='d2') return nf2.format(v);
+  if(f==='pct') return nf1.format(v*100)+' %'; if(f==='pct2') return nf2.format(v*100)+' %';
+  if(f==='dur'){ if(v<60) return nf1.format(v)+' s'; const s=Math.round(v); return Math.floor(s/60)+' min '+String(s%60).padStart(2,'0'); } return String(v); }
+function fmtS(k,v){ if(v==null||!isFinite(v)) return '–'; const f=MK[k].f;
+  if(f==='pct'||f==='pct2') return nf1.format(v*100)+'%'; if(f==='dur'){ if(v<60) return nf0.format(v)+'s'; const s=Math.round(v); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+  if(f==='d2') return nf2.format(v); if(f==='d1'||f==='h') return nf1.format(v); return nf0.format(v); }
+
+/* ---------- data ---------- */
+const DOW=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'], DOWL=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+function isoWeek(ds){ const d=new Date(ds+'T00:00:00Z'); const t=new Date(d); t.setUTCDate(d.getUTCDate()+4-(d.getUTCDay()||7)); const y=new Date(Date.UTC(t.getUTCFullYear(),0,1)); return Math.ceil(((t-y)/864e5+1)/7); }
+const num=v=>{ if(v==null||v==='') return NaN; if(typeof v==='number') return v; const t=String(v); const x=parseFloat(t.replace(/\s/g,'').replace(',','.')); return t.includes('%')? x/100 : x; };
+const z=v=>isFinite(v)?v:0;
+const SEG_ORDER=['CLIENT','INVITE','LEADS','NON VENTILÉ'];
+const SEG_VAR={CLIENT:'--segC',INVITE:'--segI',LEADS:'--segL','NON VENTILÉ':'--segN'};
+const segLabel=g=> g==='NON VENTILÉ'?'Non ventilé' : g.charAt(0)+g.slice(1).toLowerCase();
+let ALL=[], DATES=[], WEEKS=[], NAMES=[], SEGS=[];
+function prepare(raw){
+  const rows=raw.filter(r=>r.date&&r.name).map(r=>{
+    const o={date:r.date,name:String(r.name).replace(/\s+/g,' ').trim(),seg:r.seg?String(r.seg).trim().toUpperCase():'NON VENTILÉ'};
+    o.dec=z(num(r.dec)); o.ca=z(num(r.ca)); o.cm=z(num(r.cm));
+    const argu=num(r.argu), cah=num(r.cah), w=z(num(r.wait));
+    o.argus=(o.ca>0&&argu>0)? o.ca/argu : o.ca+o.cm;
+    o.repN=o.dec*z(num(r.rep)); o.hcN=o.dec*z(num(r.hc)); o.indN=o.dec*z(num(r.ind)); o.aplN=o.dec*z(num(r.apl));
+    const dC=num(r.dmcC), dR=num(r.dmcR), dW=num(r.wrap), dRep=num(r.dmcRep);
+    o.sC=o.ca>0&&isFinite(dC)?o.ca*dC:0; o.nC=o.ca>0&&isFinite(dC)?o.ca:0;
+    o.sR=o.cm>0&&isFinite(dR)?o.cm*dR:0; o.nR=o.cm>0&&isFinite(dR)?o.cm:0;
+    o.sW=isFinite(dW)?o.dec*dW:0; o.nW=isFinite(dW)?o.dec:0;
+    o.sRep=o.repN>0&&isFinite(dRep)?o.repN*dRep:0; o.nRep=o.repN>0&&isFinite(dRep)?o.repN:0;
+    o._talk=(o.sC+o.sR+o.sRep+o.sW)/3600; o._w=w; o._h=(o.ca>0&&cah>0)?o.ca/cah:NaN;
+    o.wk=isoWeek(o.date); o.dow=new Date(o.date+'T00:00:00Z').getUTCDay(); return o;
+  });
+  const rat=rows.filter(o=>isFinite(o._h)&&o._talk>0&&o._w<1).map(o=>o._h/(o._talk/(1-o._w))).sort((a,b)=>a-b);
+  const F=rat.length?rat[Math.floor(rat.length/2)]:1;
+  rows.forEach(o=>{ o.hrs=isFinite(o._h)?o._h:(o._w<1?F*o._talk/(1-o._w):0); o.waitH=o.hrs*o._w; });
+  ALL=rows; DATES=[...new Set(rows.map(r=>r.date))].sort(); WEEKS=[...new Set(rows.map(r=>r.wk))].sort((a,b)=>a-b);
+  NAMES=[...new Set(rows.map(r=>r.name))].sort((a,b)=>a.localeCompare(b,'fr'));
+  SEGS=[...new Set(rows.map(r=>r.seg))].sort((a,b)=>{ const ia=SEG_ORDER.indexOf(a), ib=SEG_ORDER.indexOf(b); return (ia<0?9:ia)-(ib<0?9:ib)||a.localeCompare(b); });
+}
+const SUMK=['dec','ca','cm','argus','hrs','repN','hcN','indN','aplN','waitH','sC','nC','sR','nR','sW','nW','sRep','nRep'];
+function agg(rows){ const s=Object.fromEntries(SUMK.map(k=>[k,0])); const n=new Set(), d=new Set(); for(const r of rows){ for(const k of SUMK) s[k]+=r[k]; n.add(r.name); d.add(r.date);} s.nNames=n.size; s.nDays=d.size; s.nRows=rows.length; return s; }
+const dv=(a,b)=>b>0?a/b:NaN;
+function val(s,k,perDay){ if(!s||!s.nRows) return NaN; const pd=perDay&&MK[k].vol? s.nDays:1;
+  switch(k){ case 'dec':return s.dec/pd; case 'ca':return s.ca/pd; case 'cm':return s.cm/pd; case 'hrs':return s.hrs/pd;
+    case 'conv':return dv(s.ca,s.dec); case 'conso':return dv(s.dec,s.ca); case 'argu':return dv(s.ca,s.argus); case 'cah':return dv(s.ca,s.hrs); case 'dech':return dv(s.dec,s.hrs); case 'rep':return dv(s.repN,s.dec);
+    case 'wait':return dv(s.waitH,s.hrs); case 'ind':return dv(s.indN,s.dec); case 'hc':return dv(s.hcN,s.dec); case 'apl':return dv(s.aplN,s.dec);
+    case 'dmcC':return dv(s.sC,s.nC); case 'dmcR':return dv(s.sR,s.nR); case 'wrap':return dv(s.sW,s.nW); case 'dmcRep':return dv(s.sRep,s.nRep); } }
+const groupBy=(rs,f)=>{ const m=new Map(); for(const r of rs){ const k=f(r); if(!m.has(k)) m.set(k,[]); m.get(k).push(r);} return m; };
+function dateLabel(ds,long){ const d=new Date(ds+'T00:00:00Z'); return (long?DOWL:DOW)[d.getUTCDay()]+' '+String(d.getUTCDate()).padStart(2,'0')+'/'+String(d.getUTCMonth()+1).padStart(2,'0'); }
+function linTrend(ys){ const pts=ys.map((y,i)=>[i,y]).filter(p=>isFinite(p[1])); if(pts.length<3) return null; const n=pts.length, mx=pts.reduce((a,p)=>a+p[0],0)/n, my=pts.reduce((a,p)=>a+p[1],0)/n; let sxy=0,sxx=0; for(const [x,y] of pts){ sxy+=(x-mx)*(y-my); sxx+=(x-mx)**2; } const b=sxx?sxy/sxx:0, a=my-b*mx; const f=a+b*pts[0][0], l=a+b*pts[n-1][0]; return {a,b,pct:f?(l-f)/Math.abs(f):NaN}; }
+
+/* ---------- state & scopes ---------- */
+const S={tab:'vue', segs:new Set(), weeks:new Set(), sel:new Set(), dayBar:'dec', dayLine:'cah', dowBar:'ca', dowLine:'cah', segK:'cah', mx:'cah', mxSort:'__all', mv:'cah', adv:'cah', heat:'cah', evo:'cah', focus:null, sort:{k:'rank',d:1}};
+const inSeg=r=>S.segs.size===0||S.segs.has(r.seg);
+const inWeeks=r=>S.weeks.size===0||S.weeks.has(r.wk);
+const segRows=()=>ALL.filter(inSeg);                       // segment only (all weeks)
+const periodRows=()=>ALL.filter(r=>inSeg(r)&&inWeeks(r));  // segment × period → reference "plateau"
+let CONCERNED=[];                                          // advisors present in segment × period
+function effSel(){ const s=[...S.sel].filter(n=>CONCERNED.includes(n)); return new Set(s); }
+const selActive=()=>effSel().size>0;
+const inSel=r=>{ const e=effSel(); return e.size===0? CONCERNED.includes(r.name) : e.has(r.name); };
+const scopeRows=()=>periodRows().filter(inSel);
+const visibleNames=()=>{ const e=effSel(); return e.size? CONCERNED.filter(n=>e.has(n)) : CONCERNED; };
+function weeksIn(){ const have=new Set(scopeRows().map(r=>r.wk)); const w=WEEKS.filter(w=>have.has(w)); return w.length?w:WEEKS.filter(w=>S.weeks.size===0||S.weeks.has(w)); }
+function lastPrev(rows){ const have=[...new Set(rows.map(r=>r.wk))].sort((a,b)=>a-b); const inScope=have.filter(w=>S.weeks.size===0||S.weeks.has(w)); const last=inScope[inScope.length-1]; const prev=have.filter(w=>w<last).pop(); return {last,prev}; }
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const segCol=g=>css(SEG_VAR[g]||'--s7');
+function segScopeTxt(){ return S.segs.size? [...S.segs].map(segLabel).join(' + ') : 'Tous segments'; }
+
+/* ---------- deltas & levels ---------- */
+function change(k,a,b){ if(!isFinite(a)||!isFinite(b)||a===0) return NaN; return isPct(k)? b-a : (b-a)/Math.abs(a); }
+function chTxt(k,c){ if(!isFinite(c)) return '–'; const s=c>=0?'+':'−'; return isPct(k)? s+nf1.format(Math.abs(c*100))+' pt' : s+nf0.format(Math.abs(c*100))+' %'; }
+function chCls(k,c){ const eps=isPct(k)?0.002:0.02; if(!isFinite(c)||Math.abs(c)<eps||MK[k].dir===0) return 'neu'; return c*MK[k].dir>0?'good':'bad'; }
+function badge(k,c){ if(!isFinite(c)) return '<span class="delta neu">–</span>'; const eps=isPct(k)?0.002:0.02; const a=Math.abs(c)<eps?'→':c>0?'▲':'▼'; return `<span class="delta ${chCls(k,c)}">${a} ${chTxt(k,c)}</span>`; }
+function deltaHtml(k,cur,prev){ return badge(k,change(k,prev,cur)); }
+function lvl(v,p){ if(!isFinite(v)||!isFinite(p)||!p) return null; const r=(v-p)/Math.abs(p); return r>=.25?2:r>=.07?1:r>-.07?0:r>-.25?-1:-2; }
+function lvlStyle(l,dir){ if(l==null) return ''; if(dir===0) return 'background:var(--panel-2)'; if(dir<0) l=-l; const m={2:['--l2','--t2'],1:['--l1','--t1'],0:['--l0','--t0'],'-1':['--lm1','--tm1'],'-2':['--lm2','--tm2']}[l]; return `background:var(${m[0]});color:var(${m[1]})`; }
+function lvlLegend(k){ const dir=MK[k].dir; if(dir===0) return '<span>Indicateur sans sens de lecture : valeurs brutes.</span>'; const L={2:'Nettement mieux',1:'Mieux',0:'Proche',[-1]:'Moins bien',[-2]:'Nettement moins bien'}; return [2,1,0,-1,-2].map(l=>`<span><i style="${lvlStyle(dir<0?-l:l,dir)}"></i>${L[l]}</span>`).join('')+'<span class="muted">écart ±7 % puis ±25 %</span>'; }
+function spark(vals,w=200,h=34){ const pts=vals.map((v,i)=>[i,v]).filter(p=>isFinite(p[1])); if(pts.length<2) return `<svg viewBox="0 0 ${w} ${h}"></svg>`; const xs=vals.length-1||1, mn=Math.min(...pts.map(p=>p[1])), mx=Math.max(...pts.map(p=>p[1])), rg=(mx-mn)||1; const X=i=>2+i/xs*(w-6), Y=v=>h-3-(v-mn)/rg*(h-8); const d=pts.map((p,j)=>(j?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)).join(' '); const L=pts[pts.length-1]; const c=css('--s1'); return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><path d="${d} L${X(L[0])} ${h} L${X(pts[0][0])} ${h} Z" fill="${c}" opacity=".12"/><path d="${d}" fill="none" stroke="${c}" stroke-width="1.6" vector-effect="non-scaling-stroke"/><circle cx="${X(L[0])}" cy="${Y(L[1])}" r="2.6" fill="${c}"/></svg>`; }
+
+/* ---------- charts ---------- */
+const charts={};
+function baseOpts(){ Chart.defaults.font.family=css('--f-body'); Chart.defaults.color=css('--fg-2');
+  return {responsive:true,maintainAspectRatio:false,animation:{duration:200},interaction:{mode:'index',intersect:false},
+  plugins:{legend:{display:false},tooltip:{backgroundColor:css('--panel'),titleColor:css('--fg'),bodyColor:css('--fg-2'),borderColor:css('--line-2'),borderWidth:1,padding:10,boxPadding:4,usePointStyle:true}},
+  scales:{x:{grid:{display:false},ticks:{color:css('--fg-2'),maxRotation:0,autoSkip:true}}}}; }
+function yScale(k,pos,grid,title=true){ return {position:pos,beginAtZero:!!MK[k].vol||['argu','cah','dech'].includes(k),grid:{display:grid,color:css('--grid')},border:{display:false},ticks:{color:css('--fg-2'),callback:v=>fmtS(k,v)},title:{display:title,text:MK[k].l,color:css('--fg-2'),font:{weight:600}}}; }
+function mkChart(id,cfg){ if(charts[id]) charts[id].destroy(); const el=document.getElementById(id); if(!el) return; charts[id]=new Chart(el,cfg); }
+function combo(id,labels,bk,bv,lk,lv,opts={}){
+  const o=baseOpts(); o.scales.y=yScale(bk,'left',true); o.scales.y1=yScale(lk,'right',false);
+  o.plugins.tooltip.callbacks={label:c=>' '+c.dataset.label+' : '+fmt(c.dataset._k,c.parsed.y),title:it=>opts.titles?opts.titles[it[0].dataIndex]:it[0].label};
+  const ds=[{type:'bar',label:MK[bk].l,_k:bk,data:bv,yAxisID:'y',backgroundColor:opts.barColors||css('--s1'),borderRadius:{topLeft:4,topRight:4},borderSkipped:'bottom',maxBarThickness:38,order:2},
+    {type:'line',label:MK[lk].l,_k:lk,data:lv,yAxisID:'y1',borderColor:css('--s2'),backgroundColor:css('--s2'),borderWidth:2,pointRadius:3.5,pointHoverRadius:6,pointBorderColor:css('--panel'),pointBorderWidth:2,tension:0,order:1,spanGaps:true}];
+  if(opts.trend) ds.push({type:'line',label:'Tendance',_k:lk,data:opts.trend,yAxisID:'y1',borderColor:css('--s2'),borderDash:[5,5],borderWidth:1.5,pointRadius:0,pointHoverRadius:0,order:0});
+  mkChart(id,{data:{labels,datasets:ds},options:o}); }
+
+/* ---------- filters ---------- */
+function computeConcerned(){ CONCERNED=[...new Set(periodRows().map(r=>r.name))].sort((a,b)=>a.localeCompare(b,'fr')); }
+function renderFilters(){
+  const perSeg=groupBy(ALL.filter(inWeeks),r=>r.seg);
+  const cnt=g=>new Set((perSeg.get(g)||[]).map(r=>r.name)).size;
+  document.getElementById('segBar').innerHTML=`<button type="button" data-g="__all" aria-pressed="${S.segs.size===0}">Tous <small>${new Set(ALL.filter(inWeeks).map(r=>r.name)).size}</small></button>`+SEGS.map(g=>`<button type="button" data-g="${g}" aria-pressed="${S.segs.has(g)}" title="${cnt(g)} conseillers concernés"><i style="background:${segCol(g)}"></i>${segLabel(g)} <small>${cnt(g)}</small></button>`).join('');
+  document.querySelectorAll('#segBar button').forEach(b=>b.onclick=()=>toggleSeg(b.dataset.g));
+  const wc=document.getElementById('weekChips'); const byW=groupBy(ALL.filter(inSeg),r=>r.wk);
+  wc.innerHTML=`<button class="chip" type="button" data-w="all" aria-pressed="${S.weeks.size===0}">Tout le mois</button>`+WEEKS.map(w=>{ const ds=byW.has(w)?[...new Set(byW.get(w).map(r=>r.date))].sort():[]; return `<button class="chip" type="button" data-w="${w}" aria-pressed="${S.weeks.has(w)}" ${ds.length?`title="${dateLabel(ds[0],true)} → ${dateLabel(ds[ds.length-1],true)}"`:'title="Aucune donnée pour ce segment"'}>S${w} <small>${ds.length} j</small></button>`; }).join('');
+  wc.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{ const w=b.dataset.w; if(w==='all') S.weeks.clear(); else { const n=+w; S.weeks.has(n)?S.weeks.delete(n):S.weeks.add(n); if(S.weeks.size===WEEKS.length) S.weeks.clear(); } renderAll(); });
+  const e=effSel(); const pb=document.getElementById('pickBtn');
+  pb.textContent= e.size? `${e.size} conseiller${e.size>1?'s':''} ▾` : `Tous (${CONCERNED.length}) ▾`; pb.classList.toggle('on',e.size>0);
+  const hidden=[...S.sel].filter(n=>!CONCERNED.includes(n));
+  const ctx=document.getElementById('context');
+  ctx.innerHTML=`<span><b>${segScopeTxt()}</b> · ${S.weeks.size? [...S.weeks].sort().map(w=>'S'+w).join(', ') : 'tout le mois'} · <b>${CONCERNED.length}</b> conseiller${CONCERNED.length>1?'s':''} concerné${CONCERNED.length>1?'s':''}</span>`
+    + (e.size? [...e].sort((a,b)=>a.localeCompare(b,'fr')).map(n=>`<span class="selchip">${n}<button type="button" data-n="${encodeURIComponent(n)}" aria-label="Retirer ${n}">×</button></span>`).join('')+`<button class="btn" type="button" id="clearSel" style="padding:2px 9px;font-size:12px">Effacer la sélection</button>` : '')
+    + (hidden.length? `<span class="muted">(${hidden.length} conseiller${hidden.length>1?'s':''} de la sélection hors segment, masqué${hidden.length>1?'s':''})</span>`:'');
+  ctx.querySelectorAll('.selchip button').forEach(b=>b.onclick=()=>{ S.sel.delete(decodeURIComponent(b.dataset.n)); renderAll(); });
+  const cs=document.getElementById('clearSel'); if(cs) cs.onclick=()=>{ S.sel.clear(); renderAll(); };
+  renderPick();
+}
+function renderPick(){
+  const q=document.getElementById('pickSearch').value.trim().toLowerCase();
+  const segsOf=groupBy(ALL.filter(inWeeks),r=>r.name);
+  document.getElementById('pickNote').textContent=`${CONCERNED.length} conseillers ont travaillé sur « ${segScopeTxt()} » pendant la période.`;
+  document.getElementById('pickList').innerHTML=CONCERNED.filter(n=>!q||n.toLowerCase().includes(q)).map(n=>{ const sg=[...new Set((segsOf.get(n)||[]).map(r=>r.seg))]; return `<label><input type="checkbox" data-n="${encodeURIComponent(n)}" ${S.sel.has(n)?'checked':''}>${n}<span class="dots">${SEGS.filter(g=>sg.includes(g)).map(g=>`<i title="${segLabel(g)}" style="background:${segCol(g)}"></i>`).join('')}</span></label>`; }).join('')||'<div class="muted" style="padding:10px">Aucun conseiller</div>';
+  document.querySelectorAll('#pickList input').forEach(cb=>cb.onchange=()=>{ const n=decodeURIComponent(cb.dataset.n); cb.checked?S.sel.add(n):S.sel.delete(n); renderAll(); });
+}
+function toggleSeg(g){ if(g==='__all') S.segs.clear(); else { S.segs.has(g)?S.segs.delete(g):S.segs.add(g); if(S.segs.size===SEGS.length) S.segs.clear(); } renderAll(); }
+
+/* ---------- VUE ---------- */
+function renderKPIs(){
+  const rows=scopeRows(), s=agg(rows); const {last,prev}=lastPrev(rows);
+  const sL=agg(rows.filter(r=>r.wk===last)); const all=ALL.filter(r=>inSeg(r)&&inSel(r)); const sP=prev!=null?agg(all.filter(r=>r.wk===prev)):null;
+  const byDay=groupBy(rows,r=>r.date), days=DATES.filter(d=>byDay.has(d));
+  const keys=['dec','ca','argu','cah','hrs','dmcR','rep','wrap'];
+  document.getElementById('kpis').innerHTML=keys.map(k=>{ const v=val(s,k,false); const series=days.map(d=>val(agg(byDay.get(d)),k,false));
+    const sub=MK[k].vol?`<span>${fmt(k,val(s,k,true))}/jour</span>`:'<span></span>';
+    return `<div class="kpi"><div class="kl"><span>${MK[k].l}</span>${sub}</div><div class="kv">${fmt(k,v)}</div><div class="kd">${sP?deltaHtml(k,val(sL,k,true),val(sP,k,true)):'<span class="delta neu">–</span>'}<span>S${last??'–'} vs S${prev??'–'}</span></div>${spark(series)}</div>`; }).join('');
+}
+function renderDay(){
+  const rows=scopeRows(), by=groupBy(rows,r=>r.date), days=DATES.filter(d=>by.has(d)); const ag=days.map(d=>agg(by.get(d)));
+  const bv=ag.map(s=>val(s,S.dayBar,false)), lv=ag.map(s=>val(s,S.dayLine,false)); const t=linTrend(lv);
+  const c1=css('--s1'); combo('cDay',days.map(d=>dateLabel(d)),S.dayBar,bv,S.dayLine,lv,{trend:t?lv.map((_,i)=>t.a+t.b*i):null,barColors:days.map(d=>WEEKS.indexOf(isoWeek(d))%2?c1+'b3':c1),titles:days.map(d=>dateLabel(d,true)+' · S'+isoWeek(d))});
+  document.getElementById('dayKey').innerHTML=`<span><i style="background:${css('--s1')}"></i>${MK[S.dayBar].l} (axe gauche)</span><span><i class="line" style="background:${css('--s2')}"></i>${MK[S.dayLine].l} (axe droit)</span><span class="muted">Teinte des barres alternée chaque semaine</span>`;
+  const el=document.getElementById('dayTrend'); if(t&&isFinite(t.pct)){ el.className='trendpill delta '+chCls(S.dayLine,t.pct); el.textContent=`Tendance ${t.pct>0.005?'↗ hausse':t.pct<-0.005?'↘ baisse':'→ stable'} ${t.pct>=0?'+':'−'}${nf1.format(Math.abs(t.pct*100))} %`; } else el.textContent='';
+}
+function renderWeekTable(){
+  const rows=ALL.filter(r=>inSeg(r)&&inSel(r)); const by=groupBy(rows,r=>r.wk); const ws=WEEKS.filter(w=>by.has(w)); const ag=ws.map(w=>agg(by.get(w)));
+  const cols=['dec','ca','conv','conso','argu','cah','dmcR'];
+  let h=`<table><thead><tr><th>Semaine</th><th>Jours</th>${cols.map(k=>`<th>${MK[k].l}${MK[k].vol?' /j':''}</th>`).join('')}</tr></thead><tbody>`;
+  ws.forEach((w,i)=>{ const a=ag[i], p=i?ag[i-1]:null; const on=S.weeks.size===0||S.weeks.has(w);
+    h+=`<tr style="${on?'':'opacity:.5'}"><td><b>S${w}</b></td><td>${a.nDays}</td>${cols.map(k=>{ const v=val(a,k,true); return `<td>${fmt(k,v)}<br>${p?deltaHtml(k,v,val(p,k,true)):'<span class="muted" style="font-size:11px">réf.</span>'}</td>`; }).join('')}</tr>`; });
+  document.getElementById('weekTable').innerHTML=h+'</tbody></table>';
+}
+function renderDow(){ const rows=scopeRows(); const by=groupBy(rows,r=>r.dow); const ds=[1,2,3,4,5,6,0].filter(d=>by.has(d)); const ag=ds.map(d=>agg(by.get(d)));
+  combo('cDow',ds.map(d=>DOWL[d]),S.dowBar,ag.map(s=>val(s,S.dowBar,true)),S.dowLine,ag.map(s=>val(s,S.dowLine,true)),{titles:ds.map((d,i)=>DOWL[d]+' · '+ag[i].nDays+' jours')}); }
+
+/* ---------- SEGMENTS ---------- */
+function renderSegs(){
+  const base=ALL.filter(r=>inWeeks(r)&&(effSel().size? effSel().has(r.name):true)); const by=groupBy(base,r=>r.seg); const tot=agg(base);
+  document.getElementById('segSub').textContent=`${effSel().size? effSel().size+' conseiller(s) sélectionné(s)':'Tous les conseillers'} · ${S.weeks.size?[...S.weeks].sort().map(w=>'S'+w).join(', '):'tout le mois'}. Cliquez une carte pour filtrer toute la page sur ce segment.`;
+  document.getElementById('segCards').innerHTML=SEGS.map(g=>{ const rs=by.get(g)||[]; const a=agg(rs); const share=tot.dec?a.dec/tot.dec:0; const {last,prev}=lastPrev(rs);
+    const aL=agg(rs.filter(r=>r.wk===last)), aP=prev!=null?agg(ALL.filter(r=>r.seg===g&&r.wk===prev&&(effSel().size?effSel().has(r.name):true))):null; const off=S.segs.size&&!S.segs.has(g);
+    return `<button type="button" class="segc ${off?'off':''}" data-g="${g}" aria-pressed="${S.segs.has(g)}"><div class="sh"><i style="background:${segCol(g)}"></i>${segLabel(g)}<span class="muted" style="margin-left:auto;font:500 12px var(--f-body)">${nf1.format(share*100)} % des décrochés</span></div><div class="share"><b style="width:${(share*100).toFixed(1)}%;background:${segCol(g)}"></b></div>
+      <dl><dt>Conseillers</dt><dd>${a.nNames}</dd><dt>Décrochés</dt><dd>${fmt('dec',a.dec)}</dd><dt>CA+</dt><dd>${fmt('ca',a.ca)}</dd><dt>Conso fiche</dt><dd>${fmt('conv',val(a,'conv'))}</dd><dt>Volume conso</dt><dd>${fmt('conso',val(a,'conso'))}</dd><dt>CA+/argu</dt><dd>${fmt('argu',val(a,'argu'))}</dd><dt>CA+/heure</dt><dd>${fmt('cah',val(a,'cah'))}</dd><dt>DMC Refus</dt><dd>${fmt('dmcR',val(a,'dmcR'))}</dd>
+      <dt>CA+/h S${last??'–'} vs S${prev??'–'}</dt><dd>${aP&&g!=='NON VENTILÉ'?deltaHtml('cah',val(aL,'cah'),val(aP,'cah')):'–'}</dd></dl></button>`; }).join('');
+  document.querySelectorAll('#segCards .segc').forEach(b=>b.onclick=()=>toggleSeg(b.dataset.g));
+  const k=S.segK; const o=baseOpts(); o.scales.y=yScale(k,'left',true); o.plugins.legend={display:true,position:'bottom',labels:{usePointStyle:true,boxWidth:8,color:css('--fg-2')}}; o.plugins.tooltip.callbacks={label:c=>' '+c.dataset.label+' : '+fmt(k,c.parsed.y)};
+  const allW=ALL.filter(r=>effSel().size?effSel().has(r.name):true);
+  const ds=SEGS.map(g=>{ const c=segCol(g); const dim=S.segs.size&&!S.segs.has(g); return {label:segLabel(g),data:WEEKS.map(w=>{ const rs=allW.filter(r=>r.seg===g&&r.wk===w); return rs.length?val(agg(rs),k,true):null; }),borderColor:dim?c+'55':c,backgroundColor:c,borderWidth:dim?1.5:2.5,pointRadius:4,pointBorderColor:css('--panel'),pointBorderWidth:1.5,borderDash:g==='NON VENTILÉ'?[4,4]:[]}; });
+  ds.push({label:'Tous segments',data:WEEKS.map(w=>val(agg(allW.filter(r=>r.wk===w)),k,true)),borderColor:css('--fg'),borderWidth:1.5,borderDash:[2,3],pointRadius:0});
+  mkChart('cSeg',{type:'line',data:{labels:WEEKS.map(w=>'S'+w),datasets:ds},options:o});
+  renderMatrix();
+}
+function renderMatrix(){
+  const k=S.mx, dir=MK[k].dir; const cols=S.segs.size? [...SEGS.filter(g=>S.segs.has(g)),...SEGS.filter(g=>!S.segs.has(g))] : SEGS;
+  const rows=ALL.filter(inWeeks); const ref=new Map(cols.map(g=>[g,val(agg(rows.filter(r=>r.seg===g)),k,true)])); const refAll=val(agg(rows.filter(inSeg)),k,true);
+  const names=visibleNames(); const by=groupBy(rows.filter(r=>names.includes(r.name)),r=>r.name);
+  const ms=document.getElementById('mxSort'); ms.innerHTML=`<option value="__name">Nom</option><option value="__all">${S.segs.size?'Segments choisis':'Total'}</option>`+cols.map(g=>`<option value="${g}">${segLabel(g)}</option>`).join(''); if(![...ms.options].some(o=>o.value===S.mxSort)) S.mxSort='__all'; ms.value=S.mxSort;
+  const data=names.filter(n=>by.has(n)).map(n=>{ const bg=groupBy(by.get(n),r=>r.seg); const cells=Object.fromEntries(cols.map(g=>{ const a=bg.has(g)?agg(bg.get(g)):null; return [g,a?{v:val(a,k,true),dec:a.dec,days:a.nDays}:null]; })); const a=agg(by.get(n).filter(inSeg)); return {n,cells,all:{v:val(a,k,true),dec:a.dec,days:a.nDays}}; });
+  const key=r=>S.mxSort==='__all'?r.all.v:(r.cells[S.mxSort]?r.cells[S.mxSort].v:NaN); const sg=dir<0?-1:1;
+  if(S.mxSort==='__name') data.sort((a,b)=>a.n.localeCompare(b.n,'fr')); else data.sort((a,b)=>{ const va=key(a), vb=key(b); return (isFinite(vb)?vb*sg:-1e12)-(isFinite(va)?va*sg:-1e12); });
+  document.getElementById('mxLegend').innerHTML=lvlLegend(k);
+  const pill=(c,rv)=> !c||!isFinite(c.v)? '<span class="muted">·</span>' : `<span class="pill" style="${lvlStyle(lvl(c.v,rv),dir)};${c.dec<50?'opacity:.45':''}" title="${fmt(k,c.v)} · moyenne ${fmt(k,rv)} · ${c.days} j">${fmtS(k,c.v)}<small>${nf0.format(c.dec)} déc.</small></span>`;
+  const multi=true; const dimCol=g=>S.segs.size&&!S.segs.has(g);
+  let h=`<table><thead><tr><th>Conseiller</th>${cols.map(g=>`<th class="c" style="${dimCol(g)?'opacity:.55':''}" title="${dimCol(g)?'Hors filtre : pour comparaison':''}"><span style="display:inline-flex;gap:6px;align-items:center"><i style="width:9px;height:9px;border-radius:2px;display:inline-block;background:${segCol(g)}"></i>${segLabel(g)}</span></th>`).join('')}<th class="c">${S.segs.size?'Segments choisis':'Total'}</th></tr></thead><tbody>`;
+  h+=`<tr style="font-weight:600"><td class="name">Moyenne plateau</td>${cols.map(g=>`<td class="c">${fmtS(k,ref.get(g))}</td>`).join('')}${multi?`<td class="c">${fmtS(k,refAll)}</td>`:''}</tr>`;
+  for(const r of data) h+=`<tr><td class="name">${r.n}</td>${cols.map(g=>`<td class="c" style="${dimCol(g)?'opacity:.6':''}">${pill(r.cells[g],ref.get(g))}</td>`).join('')}${multi?`<td class="c">${pill(r.all,refAll)}</td>`:''}</tr>`;
+  document.getElementById('mxTable').innerHTML=h+'</tbody></table>';
+}
+
+/* ---------- CONSEILLERS ---------- */
+function renderMovers(){
+  const k=S.mv; const rows=ALL.filter(r=>inSeg(r)&&inSel(r)); const {last,prev}=lastPrev(scopeRows());
+  const sub=document.getElementById('mvSub'), box=document.getElementById('movers');
+  if(prev==null){ sub.textContent='Pas de semaine précédente à comparer.'; box.innerHTML=''; return; }
+  const by=groupBy(rows.filter(r=>r.wk===last||r.wk===prev),r=>r.name);
+  const arr=visibleNames().filter(n=>by.has(n)).map(n=>{ const rs=by.get(n); const a=agg(rs.filter(r=>r.wk===prev)), b=agg(rs.filter(r=>r.wk===last)); return {n,a:val(a,k,true),b:val(b,k,true),da:a.nDays,db:b.nDays}; }).filter(x=>isFinite(x.a)&&isFinite(x.b)).map(x=>({...x,c:change(k,x.a,x.b),few:x.da<2||x.db<2}));
+  const dir=MK[k].dir||1, eps=isPct(k)?0.002:0.02;
+  const up=arr.filter(x=>x.c*dir>=eps).sort((x,y)=>y.c*dir-x.c*dir), dn=arr.filter(x=>x.c*dir<=-eps).sort((x,y)=>x.c*dir-y.c*dir), st=arr.filter(x=>Math.abs(x.c)<eps);
+  sub.textContent=`${MK[k].l} · S${last} comparée à S${prev} · ${segScopeTxt()} · ${arr.length} conseillers présents les deux semaines : ${up.length} ${MK[k].dir===0?'en hausse':'en progression'}, ${dn.length} ${MK[k].dir===0?'en baisse':'en recul'}, ${st.length} stable(s). En grisé : moins de 2 jours sur l'une des semaines.`;
+  const row=x=>`<div class="mvrow" style="${x.few?'opacity:.5':''}"><span class="n">${x.n}</span><span class="ft">${fmtS(k,x.a)} → ${fmtS(k,x.b)}</span>${badge(k,x.c)}</div>`;
+  box.innerHTML=`<div class="mv"><h3>${MK[k].dir===0?'En hausse':'En progression'} · ${up.length}</h3>${up.map(row).join('')||'<span class="muted">–</span>'}</div><div class="mv"><h3>${MK[k].dir===0?'En baisse':'En recul'} · ${dn.length}</h3>${dn.map(row).join('')||'<span class="muted">–</span>'}${st.length?`<h3 style="margin-top:10px">Stables · ${st.length}</h3>`+st.map(row).join(''):''}</div>`;
+}
+function renderAdv(){
+  const k=S.adv; const rows=periodRows(); const by=groupBy(rows,r=>r.name); const names=visibleNames().filter(n=>by.has(n));
+  const days=DATES.filter(d=>rows.some(r=>r.date===d)); const cols=['dec','ca','conv','conso','argu','cah','dmcR','rep'];
+  const segsAll=groupBy(ALL.filter(inWeeks),r=>r.name);
+  const data=names.map(n=>{ const rs=by.get(n), a=agg(rs), g=groupBy(rs,r=>r.date); const series=days.map(d=>g.has(d)?val(agg(g.get(d)),k,false):NaN); const t=linTrend(series.filter(isFinite)); return {n,a,series,v:val(a,k,true),trend:t?t.pct:NaN,segs:[...new Set((segsAll.get(n)||[]).map(r=>r.seg))]}; });
+  const dir=MK[k].dir; const ranked=[...data].filter(r=>isFinite(r.v)).sort((a,b)=>dir<0?a.v-b.v:b.v-a.v); const rank=new Map(ranked.map((r,i)=>[r.n,i+1]));
+  const gv=(r,c)=> c==='n'?r.n : c==='rank'? (rank.get(r.n)??1e9) : c==='days'? r.a.nDays : c==='trend'? r.trend : val(r.a,c,MK[c].vol);
+  const {k:sk,d:sd}=S.sort; data.sort((x,y)=>{ const a=gv(x,sk), b=gv(y,sk); if(sk==='n') return sd*a.localeCompare(b,'fr'); return sd*((isFinite(a)?a:-1e12)-(isFinite(b)?b:-1e12)); });
+  const ar=c=>S.sort.k===c?(S.sort.d>0?' ↑':' ↓'):''; const th=(c,l)=>`<th class="sortable" data-sort="${c}">${l}${ar(c)}</th>`;
+  const plat=agg(rows.filter(r=>names.includes(r.name)));
+  let h=`<table><thead><tr><th>✓</th>${th('rank','Rang')}${th('n','Conseiller')}<th>Segments</th>${th('days','Jours')}${cols.map(c=>th(c,MK[c].l+(MK[c].vol?' /j':''))).join('')}<th>${MK[k].l} jour par jour</th>${th('trend','Tendance')}</tr></thead><tbody>`;
+  h+=`<tr style="font-weight:600"><td></td><td></td><td class="name">Plateau (périmètre)</td><td></td><td>${plat.nDays}</td>${cols.map(c=>`<td>${fmt(c,val(plat,c,MK[c].vol))}</td>`).join('')}<td></td><td></td></tr>`;
+  for(const r of data){ const sel=S.sel.has(r.n); const t=isFinite(r.trend)?badge(k,r.trend):'<span class="muted">–</span>';
+    h+=`<tr class="${sel?'sel':''}"><td><input type="checkbox" data-n="${encodeURIComponent(r.n)}" ${sel?'checked':''} aria-label="Sélectionner ${r.n}"></td><td>${rank.get(r.n)??'–'}</td><td class="name"><button type="button" class="btn" data-f="${encodeURIComponent(r.n)}" style="border:0;padding:0;background:none;font-weight:500;color:var(--fg);text-decoration:underline;text-decoration-color:var(--line-2);text-underline-offset:3px">${r.n}</button></td><td><span class="dots" style="display:inline-flex;gap:3px">${SEGS.filter(g=>r.segs.includes(g)).map(g=>`<i title="${segLabel(g)}" style="background:${segCol(g)}"></i>`).join('')}</span></td><td>${r.a.nDays}</td>${cols.map(c=>`<td>${fmt(c,val(r.a,c,MK[c].vol))}</td>`).join('')}<td>${spark(r.series,90,22)}</td><td>${t}</td></tr>`; }
+  const el=document.getElementById('advTable'); el.innerHTML=h+'</tbody></table>';
+  el.querySelectorAll('th[data-sort]').forEach(t=>t.onclick=()=>{ const c=t.dataset.sort; S.sort={k:c,d:S.sort.k===c?-S.sort.d:(c==='n'||c==='rank'?1:-1)}; renderAdv(); });
+  el.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.onchange=()=>{ const n=decodeURIComponent(cb.dataset.n); cb.checked?S.sel.add(n):S.sel.delete(n); renderAll(); });
+  el.querySelectorAll('button[data-f]').forEach(b=>b.onclick=()=>{ S.focus=decodeURIComponent(b.dataset.f); setTab('evolution'); });
+}
+function renderHeat(){
+  const k=S.heat, dir=MK[k].dir, rows=periodRows(); const ws=weeksIn();
+  const plat=new Map(ws.map(w=>[w,val(agg(rows.filter(r=>r.wk===w)),k,true)]));
+  const names=visibleNames(); const by=groupBy(rows.filter(r=>names.includes(r.name)),r=>r.name); const eps=isPct(k)?0.002:0.02;
+  document.getElementById('heatLegend').innerHTML=lvlLegend(k);
+  let h=`<table><thead><tr><th>Conseiller</th>${ws.map(w=>`<th class="c">S${w}</th>`).join('')}<th class="c">Évolution</th><th class="c">Période</th></tr></thead><tbody>`;
+  h+=`<tr style="font-weight:600"><td class="name">Plateau (périmètre)</td>${ws.map(w=>`<td class="c">${fmtS(k,plat.get(w))}</td>`).join('')}<td></td><td class="c">${fmtS(k,val(agg(rows),k,true))}</td></tr>`;
+  for(const n of names){ if(!by.has(n)) continue; const bw=groupBy(by.get(n),r=>r.wk);
+    const cells=ws.map(w=>{ if(!bw.has(w)) return null; const a=agg(bw.get(w)); return {v:val(a,k,true),days:a.nDays}; });
+    const solid=cells.filter(c=>c&&c.days>=2&&isFinite(c.v)); const evo=solid.length>=2?change(k,solid[0].v,solid[solid.length-1].v):NaN;
+    h+=`<tr><td class="name">${n}</td>`+cells.map((c,i)=>{ if(!c||!isFinite(c.v)) return '<td class="c muted">·</td>'; const p=i&&cells[i-1]&&isFinite(cells[i-1].v)?cells[i-1].v:null; const a=p==null?'':(Math.abs(c.v-p)/(Math.abs(p)||1)<eps?'→':c.v>p?'↗':'↘'); return `<td class="c"><span class="muted" style="font-size:11px">${a}</span> <span class="pill" style="${lvlStyle(lvl(c.v,plat.get(ws[i])),dir)};${c.days<2?'opacity:.45':''}" title="${n} · S${ws[i]} : ${fmt(k,c.v)} · plateau ${fmt(k,plat.get(ws[i]))} · ${c.days} j">${fmtS(k,c.v)}<small>${c.days} j</small></span></td>`; }).join('')+`<td class="c">${badge(k,evo)}</td><td class="c"><b>${fmtS(k,val(agg(by.get(n)),k,true))}</b></td></tr>`; }
+  document.getElementById('heatTable').innerHTML=h+'</tbody></table>';
+}
+
+/* ---------- ÉVOLUTION (simplified) ---------- */
+const EVO_KEYS=['argu','cah','conv','conso','dmcR'];
+function advWeekly(n,k,rows){ const by=groupBy(rows.filter(r=>r.name===n),r=>r.wk); return WEEKS.map(w=>{ if(!by.has(w)) return null; const a=agg(by.get(w)); return {w,v:val(a,k,true),days:a.nDays}; }); }
+function renderEvolution(){
+  const k=S.evo, dir=MK[k].dir; const rows=periodRows(); const ws=weeksIn(); const wset=new Set(ws);
+  document.getElementById('evoSeg').innerHTML=EVO_KEYS.map(x=>`<button type="button" data-k="${x}" aria-pressed="${x===k}">${MK[x].l}${MK[x].vol?' /j':''}</button>`).join('');
+  document.querySelectorAll('#evoSeg button').forEach(b=>b.onclick=()=>{ S.evo=b.dataset.k; renderEvolution(); });
+  const names=visibleNames();
+  const data=names.map(n=>{ const wk=advWeekly(n,k,rows).filter(x=>x&&wset.has(x.w)&&x.days>=2&&isFinite(x.v)); if(wk.length<2) return {n,ok:false,wk}; const a=wk[0], b=wk[wk.length-1]; return {n,ok:true,a,b,c:change(k,a.v,b.v)}; });
+  const ok=data.filter(d=>d.ok), ko=data.filter(d=>!d.ok);
+  const platA=ws.length?val(agg(rows.filter(r=>r.wk===ws[0])),k,true):NaN, platB=ws.length?val(agg(rows.filter(r=>r.wk===ws[ws.length-1])),k,true):NaN;
+  const vals=ok.flatMap(d=>[d.a.v,d.b.v]).concat([platA,platB]).filter(isFinite).sort((a,b)=>a-b);
+  const lo=vals.length?Math.min(0,vals[Math.floor(vals.length*0.02)]):0, hi=vals.length?vals[Math.ceil(vals.length*0.98)-1]*1.05:1;
+  const X=v=>Math.max(0,Math.min(100,(v-lo)/((hi-lo)||1)*100));
+  const s=dir===0?1:dir; const eps=isPct(k)?0.002:0.02;
+  const up=ok.filter(d=>d.c*s>=eps).sort((a,b)=>b.c*s-a.c*s), dn=ok.filter(d=>d.c*s<=-eps).sort((a,b)=>a.c*s-b.c*s), st=ok.filter(d=>Math.abs(d.c)<eps);
+  document.getElementById('evoSub').textContent=`${MK[k].l}${MK[k].vol?' par jour':''} : première semaine travaillée → dernière (au moins 2 jours chacune), ${segScopeTxt()}. Plateau : ${fmtS(k,platA)} → ${fmtS(k,platB)}. Cliquez une ligne pour ouvrir la fiche.`;
+  const colOf=c=> dir===0? 'var(--neu)' : (c*dir>=eps? 'var(--good)' : c*dir<=-eps? 'var(--bad)' : 'var(--fg-3)');
+  const row=d=>{ const x0=X(d.a.v), x1=X(d.b.v), L=Math.min(x0,x1), W=Math.abs(x1-x0); const col=colOf(d.c);
+    return `<button type="button" class="dbrow ${S.focus===d.n?'on':''}" data-n="${encodeURIComponent(d.n)}" title="${d.n} · S${d.a.w} ${fmt(k,d.a.v)} → S${d.b.w} ${fmt(k,d.b.v)}"><span class="n">${d.n}</span><span class="track"><span class="base"></span>${isFinite(platB)?`<span class="plat" style="left:${X(platB)}%"></span>`:''}<span class="bar" style="left:${L}%;width:${W}%;background:${col};opacity:.45"></span><span class="d0" style="left:${x0}%"></span><span class="d1" style="left:${x1}%;background:${col}"></span></span><span class="v"><span class="ft">${fmtS(k,d.a.v)} → ${fmtS(k,d.b.v)}</span>${badge(k,d.c)}</span></button>`; };
+  const ticks=[0,0.25,0.5,0.75,1].map(t=>fmtS(k,lo+t*(hi-lo)));
+  let h=`<div class="dbhead"><span>Conseiller</span><span class="ax">${ticks.map(t=>`<span>${t}</span>`).join('')}</span><span style="text-align:right">Avant → après</span></div><div class="db">`;
+  const grp=(t,arr)=> arr.length? `<div class="dbgroup">${t} · ${arr.length}</div>`+arr.map(row).join('') : '';
+  h+=grp(dir===0?'En hausse':'En progression',up)+grp(dir===0?'En baisse':'En recul',dn)+grp('Stables',st);
+  if(ko.length) h+=`<div class="dbgroup">Pas assez de semaines pour comparer · ${ko.length}</div><div class="muted" style="font-size:12px;padding:0 8px 6px">${ko.map(d=>d.n).join(' · ')}</div>`;
+  document.getElementById('dumbbell').innerHTML=h+'</div>';
+  document.querySelectorAll('#dumbbell .dbrow').forEach(b=>b.onclick=()=>{ S.focus=decodeURIComponent(b.dataset.n); renderEvolution(); });
+  if(!S.focus||!names.includes(S.focus)) S.focus=(up[0]||ok[0]||data[0]||{}).n||null;
+  document.querySelectorAll('#dumbbell .dbrow').forEach(b=>b.classList.toggle('on',decodeURIComponent(b.dataset.n)===S.focus));
+  renderFiche();
+}
+function renderFiche(){
+  const el=document.getElementById('fiche'); const n=S.focus; if(!n){ el.innerHTML='<div class="empty">Aucun conseiller sur ce filtre.</div>'; return; }
+  const rows=periodRows(); const ws=weeksIn(); const mine=rows.filter(r=>r.name===n); const a=agg(mine);
+  const segs=[...new Set(ALL.filter(r=>r.name===n&&inWeeks(r)).map(r=>r.seg))];
+  const keys=['argu','cah','dmcR'];
+  const verdict=k=>{ const wk=advWeekly(n,k,rows).filter(x=>x&&ws.includes(x.w)&&isFinite(x.v)); const pl=ws.map(w=>val(agg(rows.filter(r=>r.wk===w)),k,true));
+    const above=wk.filter(x=>{ const p=pl[ws.indexOf(x.w)]; return MK[k].dir<0? x.v<p : x.v>p; }).length;
+    const solid=wk.filter(x=>x.days>=2); const c=solid.length>=2?change(k,solid[0].v,solid[solid.length-1].v):NaN;
+    const trend=!isFinite(c)?'pas assez de semaines pour une tendance':(MK[k].dir===0?(c>0?'en hausse ':'en baisse '):(c*MK[k].dir>0?'en progression ':'en recul '))+(isFinite(c)?chTxt(k,c):'');
+    const pos= MK[k].dir===0? `plus long que le plateau ${above}/${wk.length} semaines` : `au-dessus du plateau ${above} semaine${above>1?'s':''} sur ${wk.length}`;
+    return `<li><b style="min-width:84px">${MK[k].l}</b><span>${fmt(k,val(a,k,true))} sur la période · ${trend} · ${pos}</span></li>`; };
+  el.innerHTML=`<div class="who"><span class="eyebrow">Fiche conseiller</span><span class="nm">${n}</span><span class="muted" style="font-size:13px">${a.nDays} jours · ${fmt('dec',a.dec)} décrochés · ${fmt('ca',a.ca)} CA+ · segments : ${SEGS.filter(g=>segs.includes(g)).map(g=>`<span style="display:inline-flex;gap:4px;align-items:center"><i style="width:8px;height:8px;border-radius:2px;display:inline-block;background:${segCol(g)}"></i>${segLabel(g)}</span>`).join(', ')}</span></div>
+    <ul class="verdicts">${keys.map(verdict).join('')}</ul>
+    <div class="minis">${keys.map(k=>`<div class="mini"><h3>${MK[k].l}<span>barres : ${n.split(' ')[0]} · trait : plateau</span></h3><div class="chartbox"><canvas id="mini_${k}"></canvas></div></div>`).join('')}</div>`;
+  for(const k of keys){ const wk=advWeekly(n,k,rows); const o=baseOpts(); o.scales.y=yScale(k,'left',true,false); o.plugins.tooltip.callbacks={label:c=>' '+c.dataset.label+' : '+fmt(k,c.parsed.y)};
+    mkChart('mini_'+k,{data:{labels:ws.map(w=>'S'+w),datasets:[
+      {type:'bar',label:n,data:ws.map(w=>{ const x=wk[WEEKS.indexOf(w)]; return x&&isFinite(x.v)?x.v:null; }),backgroundColor:ws.map(w=>{ const x=wk[WEEKS.indexOf(w)]; return x&&x.days<2? css('--s1')+'66' : css('--s1'); }),borderRadius:{topLeft:4,topRight:4},borderSkipped:'bottom',maxBarThickness:34},
+      {type:'line',label:'Plateau',data:ws.map(w=>val(agg(rows.filter(r=>r.wk===w)),k,true)),borderColor:css('--fg-3'),borderDash:[5,4],borderWidth:2,pointRadius:2.5,pointBackgroundColor:css('--fg-3'),tension:0}]},options:o}); }
+}
+
+/* ---------- tabs & render ---------- */
+function setTab(t){ S.tab=t; document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t)); document.querySelectorAll('.tabpanel').forEach(p=>p.hidden=p.dataset.panel!==t); try{ history.replaceState(null,'','#'+t); }catch(e){} renderTab(); }
+function renderTab(){ if(S.tab==='rapport') return renderReportTab(); if(S.tab==='vue'){ renderKPIs(); renderDay(); renderWeekTable(); renderDow(); } else if(S.tab==='segments') renderSegs(); else if(S.tab==='conseillers'){ renderMovers(); renderAdv(); renderHeat(); } else renderEvolution(); }
+function renderAll(){ computeConcerned(); renderFilters(); renderTab(); }
+function fillSelect(id,key,filter,after){ const el=document.getElementById(id); el.innerHTML=M.filter(filter||(()=>true)).map(m=>`<option value="${m.k}">${m.l}</option>`).join(''); el.value=S[key]; el.onchange=()=>{ S[key]=el.value; after?after():renderTab(); }; }
+
+/* ---------- import ---------- */
+const norm=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\+/g,'plus').replace(/-/g,'moins').replace(/[^a-z0-9]/g,'');
+const HMAP={conseiller:'name',decroches:'dec',caplus:'ca',cmoins:'cm',caplusargu:'argu',caplusheure:'cah',txhceligible:'hc',txindispo:'ind',txrepondeur:'rep',txwaiting:'wait',txapl:'apl',dmccplus:'dmcC',dmcrefus:'dmcR',dmwrapup:'wrap',dmcrepondeur:'dmcRep',date:'date',segment:'seg',accountprenomnom2:'_full'};
+function toISO(v){ if(v==null||v==='') return null; if(typeof v==='number') return new Date(Math.round((v-25569)*864e5)).toISOString().slice(0,10); const s=String(v).trim(); let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/); if(m) return m[0]; m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/); if(m) return `${m[3].length===2?'20'+m[3]:m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`; return null; }
+function fromSheet(aoa){ const hi=aoa.findIndex(r=>r&&r.some(c=>HMAP[norm(c)]==='dec')); if(hi<0) throw new Error('colonne « Decrochés » introuvable'); const cols=aoa[hi].map(c=>HMAP[norm(c)]||null); const out=[];
+  for(const r of aoa.slice(hi+1)){ if(!r) continue; const o={}; cols.forEach((k,i)=>{ if(k) o[k]=r[i]; }); if(!o.name&&o._full) o.name=String(o._full).split(/\n/).pop(); o.date=toISO(o.date); if(o.date&&o.name) out.push(o); }
+  if(!out.length) throw new Error('aucune ligne exploitable'); return out; }
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.hidden=false; clearTimeout(t._h); t._h=setTimeout(()=>t.hidden=true,4500); }
+function boot(data,name){ prepare(data); S.segs.clear(); S.weeks.clear(); S.sel=new Set([...S.sel].filter(n=>NAMES.includes(n))); S.focus=null;
+  document.getElementById('title').textContent=`Pilotage plateau · ${dateLabel(DATES[0]).slice(4)} → ${dateLabel(DATES[DATES.length-1]).slice(4)}`;
+  document.getElementById('src').textContent=`Source : ${name} · ${ALL.length} lignes · ${SEGS.length} segments · ${NAMES.length} conseillers · ${DATES.length} jours de production · S${WEEKS[0]} à S${WEEKS[WEEKS.length-1]}`;
+  renderAll(); }
+fillSelect('dayBar','dayBar'); fillSelect('dayLine','dayLine'); fillSelect('dowBar','dowBar'); fillSelect('dowLine','dowLine');
+fillSelect('segMetric','segK'); fillSelect('mxMetric','mx',null,renderMatrix); fillSelect('mvMetric','mv',null,renderMovers); fillSelect('advMetric','adv',null,renderAdv); fillSelect('heatMetric','heat',null,renderHeat);
+document.getElementById('mxSort').onchange=e=>{ S.mxSort=e.target.value; renderMatrix(); };
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+const panel=document.getElementById('pickPanel'), pbtn=document.getElementById('pickBtn');
+pbtn.onclick=()=>{ panel.hidden=!panel.hidden; pbtn.setAttribute('aria-expanded',!panel.hidden); if(!panel.hidden) document.getElementById('pickSearch').focus(); };
+document.addEventListener('click',e=>{ if(!panel.hidden&&!e.composedPath().some(el=>el.classList&&el.classList.contains('picker'))){ panel.hidden=true; pbtn.setAttribute('aria-expanded','false'); } });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!panel.hidden){ panel.hidden=true; pbtn.focus(); } });
+document.getElementById('pickSearch').oninput=renderPick;
+document.getElementById('pickAll').onclick=()=>{ S.sel.clear(); renderAll(); };
+document.getElementById('resetBtn').onclick=()=>{ S.segs.clear(); S.weeks.clear(); S.sel.clear(); renderAll(); };
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',renderAll);
+new MutationObserver(renderAll).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+
+/* ---------- rapport : Excel & PDF ---------- */
+const EXP=['dec','ca','cm','conv','conso','argu','cah','dech','hrs','dmcR','rep','wait','wrap','dmcC'];
+const XF={int:'#,##0',d0:'0',d1:'0.0',d2:'0.00',h:'0.0',pct:'0.0%',pct2:'0.00%',dur:'0.0'};
+const expLabel=(k,perDay)=>MK[k].l+(MK[k].f==='dur'?' (s)':'')+(perDay&&MK[k].vol?' /jour':'');
+function scopeText(){ const e=effSel(); return `${segScopeTxt()} · ${S.weeks.size?[...S.weeks].sort().map(w=>'S'+w).join(', '):'toutes les semaines'} · ${e.size? e.size+' conseiller(s) sélectionné(s)' : CONCERNED.length+' conseillers concernés'}`; }
+function renderReportTab(){ document.getElementById('repScope').innerHTML=`<span>Périmètre du rapport : <b>${scopeText()}</b></span>`; document.getElementById('repFresh').textContent=`Données : ${META.label||''} · mises à jour le ${META.updated||'–'} · ${ALL.length} lignes.`; }
+function sheetFrom(rows,widths){ const ws=XLSX.utils.aoa_to_sheet(rows.map(r=>r.map(c=>c&&c.v!==undefined?c.v:c))); rows.forEach((r,ri)=>r.forEach((c,ci)=>{ if(c&&c.z){ const ref=XLSX.utils.encode_cell({r:ri,c:ci}); if(ws[ref]&&typeof ws[ref].v==='number') ws[ref].z=c.z; } })); ws['!cols']=(widths||rows[0].map((_,i)=>i===0?28:14)).map(w=>({wch:w})); return ws; }
+const cell=(k,v)=> isFinite(v)? {v:+v.toFixed(6),z:XF[MK[k].f]} : '';
+function indRow(a,perDay){ return EXP.map(k=>cell(k,val(a,k,perDay))); }
+function exportXlsx(){
+  const wb=XLSX.utils.book_new(); const rows=scopeRows(); const all=agg(rows); const {last,prev}=lastPrev(rows);
+  const allSel=ALL.filter(r=>inSeg(r)&&inSel(r)); const aL=agg(allSel.filter(r=>r.wk===last)), aP=prev!=null?agg(allSel.filter(r=>r.wk===prev)):null;
+  // Synthèse
+  const syn=[['Pilotage plateau — rapport'],['Périmètre',scopeText()],['Données',`${META.label||''} (mise à jour ${META.updated||''})`],['Généré le',new Date().toLocaleString('fr-FR')],[],['Indicateur','Période','Par jour','S'+(last??''),'S'+(prev??''),'Écart (% ou pt)']];
+  for(const k of EXP){ const cur=val(aL,k,true), pr=aP?val(aP,k,true):NaN; const ch=change(k,pr,cur); syn.push([expLabel(k),cell(k,val(all,k,false)),MK[k].vol?cell(k,val(all,k,true)):'',cell(k,cur),cell(k,pr),isFinite(ch)?{v:+(isPct(k)?ch*100:ch).toFixed(4),z:isPct(k)?'+0.0" pt";-0.0" pt"':'+0.0%;-0.0%'}:'']); }
+  XLSX.utils.book_append_sheet(wb,sheetFrom(syn,[30,16,14,14,14,16]),'Synthèse');
+  // Conseillers
+  const byN=groupBy(periodRows(),r=>r.name); const names=visibleNames().filter(n=>byN.has(n));
+  const ranked=names.map(n=>[n,val(agg(byN.get(n)),'cah',true)]).filter(x=>isFinite(x[1])).sort((a,b)=>b[1]-a[1]); const rk=new Map(ranked.map((x,i)=>[x[0],i+1]));
+  const cons=[['Conseiller','Segments','Jours','Rang CA+/heure',...EXP.map(k=>expLabel(k))]];
+  const segsOf=groupBy(ALL.filter(inWeeks),r=>r.name);
+  for(const n of names){ const a=agg(byN.get(n)); cons.push([n,[...new Set((segsOf.get(n)||[]).map(r=>segLabel(r.seg)))].join(', '),a.nDays,rk.get(n)??'',...indRow(a,false)]); }
+  cons.push(['Plateau (périmètre)','',all.nDays,'',...indRow(all,false)]);
+  XLSX.utils.book_append_sheet(wb,sheetFrom(cons,[32,24,8,10,...EXP.map(()=>14)]),'Conseillers');
+  // Semaines
+  const bw=groupBy(allSel,r=>r.wk); const sem=[['Semaine','Jours',...EXP.map(k=>expLabel(k,true))]];
+  for(const w of WEEKS.filter(w=>bw.has(w))){ const a=agg(bw.get(w)); sem.push(['S'+w,a.nDays,...indRow(a,true)]); }
+  XLSX.utils.book_append_sheet(wb,sheetFrom(sem,[12,8,...EXP.map(()=>15)]),'Semaines');
+  // Jours
+  const bd=groupBy(rows,r=>r.date); const jr=[['Date','Jour','Semaine','Conseillers actifs',...EXP.map(k=>expLabel(k))]];
+  for(const d of DATES.filter(d=>bd.has(d))){ const a=agg(bd.get(d)); jr.push([d.split('-').reverse().join('/'),DOWL[new Date(d+'T00:00:00Z').getUTCDay()],'S'+isoWeek(d),a.nNames,...indRow(a,false)]); }
+  XLSX.utils.book_append_sheet(wb,sheetFrom(jr,[12,11,9,10,...EXP.map(()=>14)]),'Jours');
+  // Segments
+  const segBase=ALL.filter(r=>inWeeks(r)&&(effSel().size?effSel().has(r.name):true)); const bg=groupBy(segBase,r=>r.seg); const tot=agg(segBase);
+  const sg=[['Segment','Conseillers','Part des décrochés',...EXP.map(k=>expLabel(k))]];
+  for(const g of SEGS.filter(g=>bg.has(g))){ const a=agg(bg.get(g)); sg.push([segLabel(g),a.nNames,{v:tot.dec?a.dec/tot.dec:0,z:'0.0%'},...indRow(a,false)]); }
+  XLSX.utils.book_append_sheet(wb,sheetFrom(sg,[16,11,12,...EXP.map(()=>14)]),'Segments');
+  // Conseiller x segment
+  const pr=ALL.filter(r=>inWeeks(r)&&names.includes(r.name)); const cs=[['Conseiller','Segment','Jours',...EXP.map(k=>expLabel(k))]];
+  for(const n of names){ const g=groupBy(pr.filter(r=>r.name===n),r=>r.seg); for(const sgm of SEGS.filter(x=>g.has(x))){ const a=agg(g.get(sgm)); cs.push([n,segLabel(sgm),a.nDays,...indRow(a,false)]); } }
+  XLSX.utils.book_append_sheet(wb,sheetFrom(cs,[32,14,8,...EXP.map(()=>14)]),'Conseiller x segment');
+  // Conseiller x semaine
+  const cw=[['Conseiller','Semaine','Jours',...EXP.map(k=>expLabel(k,true))]]; const sr=ALL.filter(r=>inSeg(r)&&names.includes(r.name));
+  for(const n of names){ const g=groupBy(sr.filter(r=>r.name===n),r=>r.wk); for(const w of WEEKS.filter(w=>g.has(w))){ const a=agg(g.get(w)); cw.push([n,'S'+w,a.nDays,...indRow(a,true)]); } }
+  XLSX.utils.book_append_sheet(wb,sheetFrom(cw,[32,10,8,...EXP.map(()=>14)]),'Conseiller x semaine');
+  const stamp=new Date().toISOString().slice(0,10); const segTag=S.segs.size?'_'+[...S.segs].map(segLabel).join('-'):'';
+  XLSX.writeFile(wb,`Rapport_pilotage_plateau${segTag.replace(/\s/g,'')}_${stamp}.xlsx`);
+  toast('Rapport Excel téléchargé');
+}
+let PRINT_PREV=null;
+async function printReport(){
+  PRINT_PREV={tab:S.tab,theme:document.documentElement.getAttribute('data-theme')};
+  document.documentElement.setAttribute('data-theme','light'); await new Promise(r=>setTimeout(r,60));
+  const tabs=['vue','segments','conseillers','evolution'];
+  document.querySelectorAll('.tabpanel').forEach(p=>p.hidden=p.dataset.panel==='rapport');
+  Chart.defaults.animation=false;
+  for(const t of tabs){ S.tab=t; renderTab(); }
+  await new Promise(r=>setTimeout(r,500));
+  window.print();
+}
+window.addEventListener('afterprint',()=>{ if(!PRINT_PREV) return; Chart.defaults.animation=true; const p=PRINT_PREV; PRINT_PREV=null; if(p.theme) document.documentElement.setAttribute('data-theme',p.theme); else document.documentElement.removeAttribute('data-theme'); setTab(p.tab); });
+document.getElementById('dlXlsx').onclick=()=>{ try{ exportXlsx(); }catch(e){ toast('Export impossible : '+e.message); } };
+document.getElementById('dlPdf').onclick=printReport;
+document.getElementById('goReport').onclick=()=>setTab('rapport');
+
+/* ---------- accès chiffré ---------- */
+const KEY_STORE='pilotage_plateau_code';
+const b64d=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function decryptPayload(p,code){
+  const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(code),'PBKDF2',false,['deriveKey']);
+  const key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:b64d(p.salt),iterations:p.iter,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['decrypt']);
+  let buf=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64d(p.iv)},key,b64d(p.ct));
+  if(p.gz) buf=await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+  return JSON.parse(new TextDecoder().decode(buf));
+}
+let PAYLOAD=null;
+async function loadPayload(){ const r=await fetch('data.enc.json?t='+Date.now(),{cache:'no-store'}); if(!r.ok) throw new Error('fichier de données introuvable ('+r.status+')'); return r.json(); }
+function store(code,remember){ try{ if(remember) localStorage.setItem(KEY_STORE,code); else localStorage.removeItem(KEY_STORE); }catch(e){} }
+function stored(){ try{ return localStorage.getItem(KEY_STORE); }catch(e){ return null; } }
+async function unlock(code,remember){
+  const data=await decryptPayload(PAYLOAD,code);
+  store(code,remember); META=data.meta||{};
+  document.getElementById('dataNote').textContent=META.note||'';
+  document.getElementById('lock').hidden=true;
+  boot(data.rows,META.source||'données');
+  const h0=(location.hash||'').slice(1); setTab(['vue','segments','conseillers','evolution','rapport'].includes(h0)?h0:'vue');
+}
+document.getElementById('lockForm').addEventListener('submit',async e=>{ e.preventDefault(); const btn=document.getElementById('lockBtn'), err=document.getElementById('lockErr'); err.textContent=''; btn.disabled=true; btn.textContent='Ouverture…';
+  try{ if(!PAYLOAD) PAYLOAD=await loadPayload(); await unlock(document.getElementById('lockCode').value.trim(),document.getElementById('lockRemember').checked); }
+  catch(x){ err.textContent= x&&x.name==='OperationError' ? 'Code incorrect. Vérifiez le code communiqué par la supervision.' : 'Ouverture impossible : '+(x.message||x); }
+  btn.disabled=false; btn.textContent='Ouvrir le tableau de bord'; });
+function logout(){ store('',false); location.reload(); }
+(async()=>{ try{ PAYLOAD=await loadPayload(); const c=stored(); if(c){ try{ await unlock(c,true); return; }catch(e){ store('',false); document.getElementById('lockMsg').textContent='Le code a changé : saisissez le nouveau code communiqué par la supervision.'; } } }
+  catch(x){ document.getElementById('lockErr').textContent='Données indisponibles pour le moment ('+x.message+').'; }
+  document.getElementById('lockCode').focus(); })();
+const h0=(location.hash||'').slice(1); 
+</script>
+
+</body>
+</html>
